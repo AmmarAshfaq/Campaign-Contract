@@ -1,5 +1,15 @@
 pragma solidity ^0.4.17;
 
+contract CampaignFactory{
+    address[] public deployedCampaigns;
+    function createCampaign(uint minimum) public{
+        address newCampaign = new Campaign(minimum,msg.sender);
+        deployedCampaigns.push(newCampaign);
+    }
+    function getDeployedCampaigns() public view returns (address[]){
+        return deployedCampaigns;
+    }
+}
 contract Campaign {
     struct Request{
         string description;
@@ -14,14 +24,17 @@ contract Campaign {
     uint public minimumContribution;
     // address [] public approvers; //replace with mapping because mapping take constant times
     mapping(address => bool) public approvers;
+    uint public approversCount;
     Request [] public requests;
+    
      modifier restricted(){
         require(msg.sender == manager);
         _;
     }
-    function Campaign(uint minimum) public{
-        manager = msg.sender;
+    function Campaign(uint minimum,address creator) public{
+        manager = creator;
         minimumContribution = minimum;
+        approversCount++;
     }
     // mapping:collection of key value pairs.Same as js objects.but all key and value of the same type.
     //struct : collection of key value pairs that can have different types.
@@ -61,5 +74,14 @@ contract Campaign {
         
         request.approvals[msg.sender] =true;
         request.approvalCount++;
+    }
+    function finalizeRequest(uint index) public restricted{
+        Request storage request = requests[index];
+        
+        require(request.approvalCount>(approversCount/2));
+        require(!request.complete);
+        
+        request.recipient.transfer(request.value);
+        request.complete = true;
     }
 }
